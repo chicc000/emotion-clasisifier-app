@@ -6,10 +6,6 @@ import random
 with open("songs.json", "r", encoding="utf-8") as f:
     songs = json.load(f)
 
-# 過濾掉缺欄位的歌曲資料
-required_keys = ["title", "artist", "emotion", "language", "genre", "era", "lyrics", "youtube"]
-songs = [s for s in songs if all(k in s for k in required_keys)]
-
 # 定義預設情緒
 emotions = ["愉悅", "憤怒", "煩躁", "悲傷"]
 
@@ -47,7 +43,7 @@ if user_emotion:
     genre = st.selectbox("選擇曲風", ["流行", "搖滾", "嘻哈", "電子", "民謠", "爵士", "其他"])
     era = st.selectbox("選擇年代", ["80年代", "90年代", "2000年代", "2010年代至今"])
 
-    # 篩選歌曲資料
+    # 使用 .get() 避免 KeyError
     filtered_songs = [
         s for s in songs
         if s.get("emotion") == user_emotion
@@ -56,14 +52,14 @@ if user_emotion:
         and s.get("era") == era
     ]
 
-    # 顯示推薦結果
+    # 顯示結果
     if filtered_songs:
         st.subheader("為你推薦的歌曲：")
         for song in random.sample(filtered_songs, min(5, len(filtered_songs))):
-            st.markdown(f"**{song['title']}** - *{song['artist']}*  \n"
-                        f"風格：{song['genre']} | 年代：{song['era']}  \n"
-                        f"歌詞片段：{song['lyrics']}")
-            st.video(song["youtube"])
+            st.markdown(f"**{song.get('title', '無標題')}** - *{song.get('artist', '未知歌手')}*  \n"
+                        f"風格：{song.get('genre', '未知')} | 年代：{song.get('era', '未知')}  \n"
+                        f"歌詞片段：{song.get('lyrics', '無歌詞')}")
+            if "youtube" in song and song["youtube"]:
+                st.video(song["youtube"])
     else:
         st.warning("找不到符合條件的歌曲，請試試其他選項～")
-
