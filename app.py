@@ -1,14 +1,20 @@
 import streamlit as st
+import streamlit as st
 import json
 import random
 
-# 載入歌曲資料
 with open("songs.json", "r", encoding="utf-8") as f:
     songs = json.load(f)
 
 st.set_page_config(page_title="音樂情緒分類器", layout="centered")
 st.title("音樂情緒分類器")
 st.markdown("依據你的情緒或情境，推薦合適的歌曲\n支援：中文、日文、英文、韓文")
+
+st.write("歌曲資料類型:", type(songs))
+if isinstance(songs, list):
+    st.write("第一筆資料:", songs[0])
+else:
+    st.error("songs 不是 list，資料格式不正確！")
 
 emotions = ["愉悅", "憤怒", "煩躁", "悲傷"]
 
@@ -38,15 +44,17 @@ if user_emotion:
     genre = st.selectbox("選擇曲風", ["流行", "搖滾", "嘻哈", "電子", "民謠", "爵士", "其他"])
     era = st.selectbox("選擇年代", ["80年代", "90年代", "2000年代", "2010年代至今"])
 
-    filtered_songs = [
-        s for s in songs
-        if isinstance(s, dict)
-        and all(key in s for key in ["emotion", "language", "genre", "era"])
-        and s.get("emotion") == user_emotion
-        and s.get("language") == language
-        and s.get("genre") == genre
-        and s.get("era") == era
-    ]
+    filtered_songs = []
+    for s in songs:
+        try:
+            if (s.get("emotion") == user_emotion
+                and s.get("language") == language
+                and s.get("genre") == genre
+                and s.get("era") == era):
+                filtered_songs.append(s)
+        except Exception as e:
+            st.write(f"資料錯誤，跳過該筆：{s}")
+            st.write(f"錯誤訊息：{e}")
 
     if filtered_songs:
         st.subheader("為你推薦的歌曲：")
