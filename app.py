@@ -1,53 +1,52 @@
 import streamlit as st
-import pandas as pd
-import json
-import os
+import csv
+import random
 
-def load_json(file_path):
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return pd.DataFrame(data)
-    except Exception as e:
-        st.error(f"讀取 JSON 失敗: {e}")
-        return pd.DataFrame()
+# 讀取 CSV 資料
+def load_songs(csv_file):
+    songs = []
+    with open(csv_file, encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            songs.append(row)
+    return songs
 
-def load_csv(file_path):
-    try:
-        return pd.read_csv(file_path, encoding="utf-8")
-    except Exception as e:
-        st.error(f"讀取 CSV 失敗: {e}")
-        return pd.DataFrame()
+songs = load_songs("song.csv")
 
-json_df = load_json("full_songs.json") if os.path.exists("full_songs.json") else pd.DataFrame()
-csv_df = load_csv("songs.csv") if os.path.exists("songs.csv") else pd.DataFrame()
+st.set_page_config(page_title="音樂情緒分類器", layout="centered")
+st.title("音樂情緒分類器")
+st.markdown("依據你的情緒或情境，推薦合適的歌曲\n支援多種曲風與語言")
 
-# 合併時保持所有欄位，欄位不齊全用 NaN 補齊
-df = pd.concat([json_df, csv_df], ignore_index=True)
+emotions = ["愉悅", "憤怒", "煩躁", "悲傷"]
 
-# 移除 title, artist, emotion 欄位是空的資料
-df = df.dropna(subset=["title", "artist", "emotion"])
+mode = st.radio("請選擇輸入方式：", ["從選單選擇情緒", "輸入生活情境"])
 
-st.title("音樂情緒推薦器")
+user_emotion = None
 
-emotions = sorted(df["emotion"].dropna().unique())
-user_emotion = st.selectbox("請選擇你的情緒", emotions)
+if mode == "從選單選擇情緒":
+    user_emotion = st.selectbox("請選擇你目前的情緒", emotions)
+else:
+    situation = st.text_input("請輸入你目前的情境（例如：今天功課寫不完好煩躁）")
+    if situation:
+        if any(word in situation for word in ["開心", "快樂", "喜歡", "幸福", "期待"]):
+            user_emotion = "愉悅"
+        elif any(word in situation for word in ["生氣", "氣死", "爆炸", "火大", "罵人", "衝突"]):
+            user_emotion = "憤怒"
+        elif any(word in situation for word in ["煩", "煩躁", "壓力", "緊張", "焦慮", "厭世"]):
+            user_emotion = "煩躁"
+        elif any(word in situation for word in ["難過", "悲傷", "委屈", "哭", "崩潰", "失落", "孤單"]):
+            user_emotion = "悲傷"
+        else:
+            user_emotion = "煩躁"  # 預設煩躁
+        st.success(f"系統判斷你的情緒為：**{user_emotion}**")
 
 if user_emotion:
-    filtered = df[df["emotion"] == user_emotion]
-    st.write(f"找到 {len(filtered)} 首符合「{user_emotion}」的歌曲")
+    # 只用情緒推薦歌曲，因為你說只用title、artist、emotion
+    filtered_songs = [s for s in songs if s['emotion'] == user_emotion]
 
-    for _, row in filtered.sample(min(5, len(filtered))).iterrows():
-        st.markdown(f"**{row['title']}** － {row['artist']}")
-        # 顯示其他欄位可以自行加，以下示範完整顯示歌詞、語言、年代等
-        if "lyrics" in row and pd.notna(row["lyrics"]):
-            st.write(f"歌詞片段：{row['lyrics']}")
-        if "language" in row and pd.notna(row["language"]):
-            st.write(f"語言：{row['language']}")
-        if "decade" in row and pd.notna(row["decade"]):
-            st.write(f"年代：{row['decade']}")
-        if "genre" in row and pd.notna(row["genre"]):
-            st.write(f"曲風：{row['genre']}")
-        if "preview_url" in row and pd.notna(row["preview_url"]):
-            st.video(row["preview_url"])
-        st.markdown("---")
+    if filtered_songs:
+        st.subheader("為你推薦的歌曲：")
+        for song in random.sample(filtered_songs, min(5, len(filtered_songs))):
+            st.markdown(f"**{song['title']}** - *{song['artist']}*  \n情緒：{song['emotion']}")
+    else:
+        st.warning("找不到符合條件的歌曲，請試試其他選項～")
