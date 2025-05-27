@@ -1,19 +1,32 @@
-title,artist,emotion
-Happy,Pharrell Williams,快樂
-Can't Stop The Feeling,Justin Timberlake,快樂
-Shake It Off,Taylor Swift,快樂
-Someone Like You,Adele,悲傷
-Fix You,Coldplay,悲傷
-Let Her Go,Passenger,悲傷
-Believer,Imagine Dragons,憤怒
-Numb,Linkin Park,憤怒
-Stronger,Kanye West,憤怒
-Weightless,Marconi Union,平靜
-River Flows In You,Yiruma,平靜
-Spiegel im Spiegel,Arvo Pärt,平靜
-No Tears Left To Cry,Ariana Grande,快樂
-Into You,Ariana Grande,快樂
-Breathin,Ariana Grande,悲傷
-God Is A Woman,Ariana Grande,平靜
-7 rings,Ariana Grande,憤怒
-dandelion,Ariana Grande,平靜
+data = [
+    ["title","artist","emotion","genre"],
+    ["晴天","周杰倫","愉悅","流行"],
+    ["海闊天空","Beyond","愉悅","搖滾"],
+    ["No Tears Left To Cry","Ariana Grande","愉悅","電子"],
+    ["Watermelon Sugar","Harry Styles","愉悅","流行"],
+    ["Lovely","Ariana Grande & Billie Eilish","愉悅","爵士"],
+    ["光輝歲月","Beyond","憤怒","搖滾"],
+    ["怒放的生命","五月天","憤怒","搖滾"],
+    ["Bad Habit","Steve Lacy","憤怒","嘻哈"],
+    ["Break My Heart","Harry Styles","憤怒","流行"],
+    ["7 rings","Ariana Grande","憤怒","嘻哈"],
+    ["童話","光良","悲傷","流行"],
+    ["心的祈禱","張學友","悲傷","抒情"],
+    ["Someone Like You","Adele","悲傷","爵士"],
+    ["When We Were Young","Adele","悲傷","流行"],
+    ["Just a Little Bit of Your Heart","Ariana Grande","悲傷","流行"],
+    ["平凡之路","朴樹","平靜","民謠"],
+    ["Slow Hands","Niall Horan","平靜","其他"],
+    ["Adore You","Harry Styles","平靜","流行"],
+    ["No Tears Left To Cry","Ariana Grande","平靜","電子"],
+    ["Thinking Bout You","Frank Ocean","平靜","爵士"],
+    ["煙火裡的塵埃","林俊傑","煩躁","流行"],
+    ["Lose Yourself","Eminem","煩躁","嘻哈"],
+    ["Bad Guy","Billie Eilish","煩躁","電子"],
+    ["Kiwi","Harry Styles","煩躁","搖滾"],
+    ["Dangerous Woman","Ariana Grande","煩躁","流行"]
+]
+
+with open('/mnt/data/song.csv', 'w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerows(data)
