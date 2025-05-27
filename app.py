@@ -1,142 +1,78 @@
 import streamlit as st
 import pandas as pd
-import tempfile
 import librosa
 import numpy as np
+import openai
+import io
 
-# 歌詞情緒分析（簡易示範）
-def analyze_lyrics_emotion(lyrics_text):
-    lyrics_lower = lyrics_text.lower()
-    if any(w in lyrics_lower for w in ['happy', 'joy', 'love', 'smile']):
-        return '愉悅'
-    if any(w in lyrics_lower for w in ['sad', 'cry', 'hurt', 'alone']):
-        return '悲傷'
-    if any(w in lyrics_lower for w in ['angry', 'hate', 'mad']):
-        return '憤怒'
-    if any(w in lyrics_lower for w in ['calm', 'peace', 'quiet']):
-        return '平靜'
-    if any(w in lyrics_lower for w in ['frustrate', 'annoy', 'nervous']):
-        return '煩躁'
-    return '平靜'
+# 你的 OpenAI API key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# 音訊情緒分析（示範）：根據節奏、音調簡單判斷
-def analyze_audio_emotion(y, sr):
+# 載入歌曲資料
+@st.cache_data
+def load_songs(file):
+    return pd.read_csv(file)
+
+songs = load_songs("songs.csv")
+
+def extract_audio_features(audio_bytes):
+    y, sr = librosa.load(io.BytesIO(audio_bytes), sr=22050)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-    
-    # 計算平均基頻 (pitch)
-    pitch_vals = pitches[magnitudes > np.median(magnitudes)]
-    if len(pitch_vals) == 0:
-        avg_pitch = 0
+    pitch = np.mean(pitches[magnitudes > np.median(magnitudes)])
+    return tempo, pitch
+
+def analyze_lyrics_emotion(lyrics_text):
+    prompt = f"請分析以下歌詞，判斷主要情緒（愉悅、悲傷、憤怒、平靜、煩躁），並只回傳情緒詞：\n\n{lyrics_text}"
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user", "content": prompt}],
+        max_tokens=10,
+        temperature=0
+    )
+    emotion = response.choices[0].message.content.strip()
+    return emotion
+
+st.title("音樂情緒分析與推薦系統")
+
+uploaded_audio = st.file_uploader("上傳音訊檔 (wav/mp3)", type=["wav","mp3"])
+input_lyrics = st.text_area("或輸入歌詞文本")
+
+user_emotion_input = st.text_input("或手動輸入情緒 (愉悅、悲傷、憤怒、平靜、煩躁)")
+
+if st.button("分析並推薦歌曲"):
+    if uploaded_audio is None and not input_lyrics and not user_emotion_input:
+        st.warning("請至少提供音訊檔、歌詞或情緒。")
     else:
-        avg_pitch = np.mean(pitch_vals)
+        emotion_detected = None
 
-    # 簡單規則判斷情緒
-    # 節奏快且音調高 -> 愉悅
-    # 節奏慢且音調低 -> 悲傷
-    # 節奏快且音調低 -> 煩躁
-    # 節奏慢且音調高 -> 平靜
-    # 其他為憤怒
-
-    if tempo > 120 and avg_pitch > 150:
-        return "愉悅"
-    elif tempo <= 120 and avg_pitch <= 150:
-        return "悲傷"
-    elif tempo > 120 and avg_pitch <= 150:
-        return "煩躁"
-    elif tempo <= 120 and avg_pitch > 150:
-        return "平靜"
-    else:
-        return "憤怒"
-
-def load_songs(csv_path='songs.csv'):
-    df = pd.read_csv(csv_path, encoding='utf-8')
-    return df
-
-def recommend_songs(songs_df, emotion, top_n=5):
-    filtered = songs_df[songs_df['emotion'] == emotion]
-    return filtered.head(top_n)
-
-def main():
-    st.title("音樂情緒分類與推薦系統")
-
-    st.markdown("""
-    步驟：
-    1. 上傳音訊檔（可選）或輸入歌詞文字  
-    2. 系統分析歌詞與音訊情緒  
-    3. 顯示情緒分類結果，並推薦同情緒歌曲  
-    4. 或者直接輸入情緒，快速推薦  
-    """)
-
-    songs_df = load_songs()
-
-    audio_file = st.file_uploader("請上傳音訊檔（mp3/wav 等，選擇性）", type=['mp3', 'wav'])
-    lyrics_input = st.text_area("或直接輸入歌詞文字")
-
-    st.markdown("---")
-    st.subheader("快速輸入情緒推薦")
-    user_emotion = st.text_input("或直接輸入想要搜尋的情緒（如：愉悅、悲傷、憤怒、平靜、煩躁）")
-
-    # 音訊分析結果變數
-    audio_emotion = None
-
-    if audio_file is not None:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(audio_file.read())
-            tmp_path = tmp.name
-        
-        st.audio(tmp_path)
-        st.info(f"音訊檔已暫存於：{tmp_path}")
-
-        # 讀取音訊並分析
-        try:
-            y, sr = librosa.load(tmp_path, sr=None)
-            audio_emotion = analyze_audio_emotion(y, sr)
-            st.success(f"音訊分析預測情緒：**{audio_emotion}**")
-        except Exception as e:
-            st.error(f"音訊分析失敗: {e}")
-
-    # 按鈕：分析歌詞情緒並綜合推薦
-    if st.button("分析歌詞情緒並推薦"):
-        if not lyrics_input.strip():
-            st.warning("請先輸入歌詞文字！")
+        if user_emotion_input.strip():
+            emotion_detected = user_emotion_input.strip()
+            st.write(f"使用者手動輸入情緒：{emotion_detected}")
         else:
-            lyrics_emotion = analyze_lyrics_emotion(lyrics_input)
-            st.success(f"歌詞情緒判斷為：**{lyrics_emotion}**")
+            if input_lyrics.strip():
+                emotion_detected = analyze_lyrics_emotion(input_lyrics)
+                st.write(f"AI 判斷歌詞情緒為：{emotion_detected}")
+            elif uploaded_audio is not None:
+                audio_bytes = uploaded_audio.read()
+                tempo, pitch = extract_audio_features(audio_bytes)
+                st.write(f"音訊特徵：節奏 {tempo:.2f}, 平均音高 {pitch:.2f}")
 
-            # 綜合判斷
-            if audio_emotion:
-                st.info(f"結合音訊情緒：**{audio_emotion}**")
-                # 兩者簡單合併：若一致，使用該情緒，不同則標示「混合情緒」
-                if lyrics_emotion == audio_emotion:
-                    final_emotion = lyrics_emotion
+                # 根據節奏與音高簡單判斷情緒示例（可再優化）
+                if tempo > 120:
+                    emotion_detected = "愉悅"
+                elif tempo < 80:
+                    emotion_detected = "悲傷"
                 else:
-                    final_emotion = f"{lyrics_emotion} / {audio_emotion}"
-                st.success(f"綜合判斷情緒：**{final_emotion}**")
-                recs = recommend_songs(songs_df, lyrics_emotion)  # 以歌詞情緒推薦，或可改用 final_emotion
-            else:
-                final_emotion = lyrics_emotion
-                recs = recommend_songs(songs_df, lyrics_emotion)
+                    emotion_detected = "平靜"
+                st.write(f"簡單音訊分析推測情緒：{emotion_detected}")
 
-            if not recs.empty:
-                st.markdown("### 推薦相同情緒歌曲：")
-                for _, row in recs.iterrows():
-                    st.write(f"- {row['title']} by {row['artist']} [{row['genre']}]")
+        if emotion_detected:
+            filtered = songs[songs['emotion'] == emotion_detected]
+            if not filtered.empty:
+                st.write(f"推薦以下情緒為『{emotion_detected}』的歌曲：")
+                for idx, row in filtered.iterrows():
+                    st.write(f"- {row['title']} by {row['artist']} [{row.get('genre', '未知曲風')}]")
             else:
-                st.info("找不到符合該情緒的歌曲。")
+                st.write(f"抱歉，找不到情緒為『{emotion_detected}』的歌曲。")
 
-    # 直接輸入情緒推薦按鈕
-    if st.button("直接推薦該情緒歌曲"):
-        if not user_emotion.strip():
-            st.warning("請輸入欲搜尋的情緒！")
-        else:
-            recs = recommend_songs(songs_df, user_emotion)
-            if not recs.empty:
-                st.markdown(f"### 推薦情緒為 **{user_emotion}** 的歌曲：")
-                for _, row in recs.iterrows():
-                    st.write(f"- {row['title']} by {row['artist']} [{row['genre']}]")
-            else:
-                st.info("找不到符合該情緒的歌曲。")
-
-if __name__ == "__main__":
-    main()
