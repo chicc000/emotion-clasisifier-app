@@ -1,10 +1,17 @@
 import streamlit as st
-import streamlit as st
-import json
+import pandas as pd
 import random
 
-with open("songs.json", "r", encoding="utf-8") as f:
-    songs = json.load(f)
+# 讀取 CSV，並轉成 list of dicts
+try:
+    df = pd.read_csv("songs.csv", encoding="utf-8")
+    songs = df.to_dict(orient="records")
+except FileNotFoundError:
+    st.error("找不到 songs.csv 檔案，請確認檔案是否存在。")
+    st.stop()
+except Exception as e:
+    st.error(f"讀取 CSV 檔案失敗：{e}")
+    st.stop()
 
 st.set_page_config(page_title="音樂情緒分類器", layout="centered")
 st.title("音樂情緒分類器")
@@ -19,7 +26,6 @@ else:
 emotions = ["愉悅", "憤怒", "煩躁", "悲傷"]
 
 mode = st.radio("請選擇輸入方式：", ["從選單選擇情緒", "輸入生活情境"])
-
 user_emotion = None
 
 if mode == "從選單選擇情緒":
@@ -42,7 +48,7 @@ else:
 if user_emotion:
     language = st.selectbox("選擇歌曲語言", ["中文", "日文", "英文", "韓文"])
     genre = st.selectbox("選擇曲風", ["流行", "搖滾", "嘻哈", "電子", "民謠", "爵士", "其他"])
-    era = st.selectbox("選擇年代", ["80年代", "90年代", "2000年代", "2010年代至今"])
+    era = st.selectbox("選擇年代", ["1980年代", "1990年代", "2000年代", "2010年代至今", "1960年代", "1970年代"])
 
     filtered_songs = []
     for s in songs:
@@ -50,7 +56,7 @@ if user_emotion:
             if (s.get("emotion") == user_emotion
                 and s.get("language") == language
                 and s.get("genre") == genre
-                and s.get("era") == era):
+                and s.get("decade") == era):  # 注意原欄位是 decade 不是 era
                 filtered_songs.append(s)
         except Exception as e:
             st.write(f"資料錯誤，跳過該筆：{s}")
@@ -61,10 +67,10 @@ if user_emotion:
         for song in random.sample(filtered_songs, min(5, len(filtered_songs))):
             st.markdown(
                 f"**{song.get('title', '未知標題')}** - *{song.get('artist', '未知歌手')}*  \n"
-                f"風格：{song.get('genre', '未知')} | 年代：{song.get('era', '未知')}  \n"
+                f"風格：{song.get('genre', '未知')} | 年代：{song.get('decade', '未知')}  \n"
                 f"歌詞片段：{song.get('lyrics', '無歌詞資料')}"
             )
-            if song.get("youtube"):
-                st.video(song.get("youtube"))
+            if song.get("preview_url"):
+                st.video(song["preview_url"])
     else:
         st.warning("找不到符合條件的歌曲，請試試其他選項～")
